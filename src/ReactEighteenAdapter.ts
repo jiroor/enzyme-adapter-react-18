@@ -306,10 +306,10 @@ function nodeToHostNode(_node) {
 		return null;
 	}
 
-	
+
 
 	const mapper = (item) => {
-		
+
 		if (item && item.instance) return ReactDOM.findDOMNode(item.instance);
 
 		return null;
@@ -386,6 +386,11 @@ function isStateful(Component) {
 }
 
 class ReactEighteenAdapter extends EnzymeAdapter {
+	wrapWithWrappingComponent?: (node: any, options: any) => {
+		RootFinder: typeof RootFinder;
+		node: any;
+	};
+
 	constructor() {
 		super();
 		// @ts-expect-error
@@ -414,11 +419,19 @@ class ReactEighteenAdapter extends EnzymeAdapter {
 				getDerivedStateFromError: true,
 			},
 		};
+
+		this.wrapWithWrappingComponent = (node, options) => {
+			return {
+				RootFinder,
+				node: wrapWithWrappingComponent(React.createElement, node, options),
+			};
+		}
+
 	}
 
 	createMountRenderer(options) {
 		globalThis.IS_REACT_ACT_ENVIRONMENT = true;
-		
+
 		assertDomAvailable('mount');
 		if (has(options, 'suspenseFallback')) {
 			throw new TypeError('`suspenseFallback` is not supported by the `mount` renderer');
@@ -430,7 +443,7 @@ class ReactEighteenAdapter extends EnzymeAdapter {
 		let rootNode = null;
 		const adapter = this;
 		let unmountFlag = false;
-		
+
 		return {
 			render(el, context, callback) {
 				return wrapAct(() => {
@@ -446,7 +459,7 @@ class ReactEighteenAdapter extends EnzymeAdapter {
 						};
 						const ReactWrapperComponent = createMountWrapper(el, { ...options, adapter });
 						const wrappedEl = React.createElement(ReactWrapperComponent, wrapperProps);
-						
+
 						if (hydrateIn) {
 							rootNode = hydrateRoot(domNode);
 						} else {
@@ -467,14 +480,14 @@ class ReactEighteenAdapter extends EnzymeAdapter {
 				// un an unmounted tree. So we flag it instead.
 				unmountFlag = true;
 			},
-			getNode() {				
+			getNode() {
 				let node;
 
 				wrapAct(() => {
 					if (!instance) {
 						node = null;
 					}
-	
+
 					node = getNodeFromRootFinder(
 						adapter.isCustomComponent,
 						toTree(instance._reactInternals),
@@ -503,20 +516,20 @@ class ReactEighteenAdapter extends EnzymeAdapter {
 
 				const { instance: catchingInstance, type: catchingType } =
 					nodeHierarchy.find(isErrorBoundary) || {};
-					wrapAct(() => {
-						simulateError(
-							error,
-							catchingInstance,
-							rootNode,
-							nodeHierarchy,
-							nodeTypeFromType,
-							adapter.displayNameOfNode,
-							catchingType,
-						);
-					});
+				wrapAct(() => {
+					simulateError(
+						error,
+						catchingInstance,
+						rootNode,
+						nodeHierarchy,
+						nodeTypeFromType,
+						adapter.displayNameOfNode,
+						catchingType,
+					);
+				});
 			},
 			async simulateEvent(node, event, mock) {
-				
+
 				const hostNode = adapter.nodeToHostNode(node);
 				const mappedEvent = mapNativeEventNames(event);
 				const eventFn = TestUtils.Simulate[mappedEvent];
@@ -561,7 +574,7 @@ class ReactEighteenAdapter extends EnzymeAdapter {
 		const wrapPureComponent = (Component, compare) => {
 			if (lastComponent !== Component) {
 				if (isStateful(Component)) {
-					wrappedComponent = class extends Component {};
+					wrappedComponent = class extends Component { };
 					if (compare) {
 						// @ts-expect-error
 						wrappedComponent.prototype.shouldComponentUpdate = (nextProps) => !compare(this.props, nextProps);
@@ -982,14 +995,6 @@ Add the following to your test suite setup file ("setupfile" option in Jest), to
 	createElement(...args) {
 		// @ts-expect-error
 		return React.createElement(...args);
-	}
-
-	// @ts-expect-error
-	wrapWithWrappingComponent(node, options) {
-		return {
-			RootFinder,
-			node: wrapWithWrappingComponent(React.createElement, node, options),
-		};
 	}
 }
 
